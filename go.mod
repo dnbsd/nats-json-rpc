@@ -1,4 +1,4 @@
-module service-json-rpc
+module github.com/dnbsd/nats-json-rpc
 
 go 1.18
 
