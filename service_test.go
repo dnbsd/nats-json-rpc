@@ -5,6 +5,7 @@ import (
 	"fmt"
 	natsrpc "github.com/dnbsd/nats-rpc"
 	natsserver "github.com/nats-io/nats-server/v2/test"
+	"github.com/nats-io/nats.go"
 	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	natsrpc "github.com/dnbsd/nats-rpc"
+	"github.com/nats-io/nats.go"
 	"strings"
 )
 
