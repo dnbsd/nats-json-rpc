@@ -14,10 +14,11 @@ var _ natsrpc.Service = &service{}
 type Service struct {
 	server  *natsrpc.Server
 	service *service
+	subject string
 	opts    Options
 }
 
-func New(nc *nats.Conn, opts ...Option) *Service {
+func New(nc *nats.Conn, subject string, opts ...Option) *Service {
 	var o Options
 	for _, opt := range opts {
 		opt(&o)
@@ -26,6 +27,7 @@ func New(nc *nats.Conn, opts ...Option) *Service {
 	return &Service{
 		server:  natsrpc.NewServer(nc),
 		service: newService(),
+		subject: subject,
 		opts:    o,
 	}
 }
@@ -36,7 +38,7 @@ func (s *Service) Start(ctx context.Context) error {
 		return err
 	}
 
-	s.server.Register(s.opts.subject, s.service)
+	s.server.Register(s.subject, s.service)
 	return s.server.StartWithContext(ctx)
 }
 

@@ -46,7 +46,7 @@ func newNatsServerAndConnection(t *testing.T) *nats.Conn {
 func TestService_Start(t *testing.T) {
 	const rpcSubject = "test_service.rpc"
 	nc := newNatsServerAndConnection(t)
-	s := New(nc, WithSubject(rpcSubject))
+	s := New(nc, rpcSubject)
 	s.Bind(natsrpc.Receiver{
 		Name: "Echo",
 		R:    &echo{},
