@@ -26,7 +26,7 @@ func New(nc *nats.Conn, subject string, opts ...Option) *Service {
 
 	return &Service{
 		server:  natsrpc.NewServer(nc),
-		service: newService(),
+		service: newService(o.receivers...),
 		subject: subject,
 		opts:    o,
 	}
@@ -42,17 +42,17 @@ func (s *Service) Start(ctx context.Context) error {
 	return s.server.StartWithContext(ctx)
 }
 
-func (s *Service) Bind(rs ...natsrpc.Receiver) {
-	s.service.Bind(rs...)
-}
-
 type service struct {
-	receivers *natsrpc.Mapper
+	mapper *natsrpc.Mapper
 }
 
-func newService() *service {
+func newService(rs ...natsrpc.Receiver) *service {
+	mapper := natsrpc.NewMapper()
+	for i := range rs {
+		mapper.Register(rs[i].Name, rs[i].R)
+	}
 	return &service{
-		receivers: natsrpc.NewMapper(),
+		mapper: mapper,
 	}
 }
 
@@ -103,13 +103,13 @@ func (s *service) Start(ctx context.Context, reqCh <-chan *nats.Msg, respCh chan
 
 			receiver, method := s.splitMethodName(req.Method)
 
-			if !s.receivers.IsDefined(receiver, method) {
+			if !s.mapper.IsDefined(receiver, method) {
 				err = fmt.Errorf("method %s is not defined", req.Method)
 				_ = sendErrorMessage(msg.Reply, req.ID, err)
 				continue
 			}
 
-			params, _ := s.receivers.Params(receiver, method)
+			params, _ := s.mapper.Params(receiver, method)
 
 			err = json.Unmarshal(req.Params, params.Interface())
 			if err != nil {
@@ -117,7 +117,7 @@ func (s *service) Start(ctx context.Context, reqCh <-chan *nats.Msg, respCh chan
 				continue
 			}
 
-			result, err := s.receivers.Call(receiver, method, params.Elem())
+			result, err := s.mapper.Call(receiver, method, params.Elem())
 			if err != nil {
 				_ = sendErrorMessage(msg.Reply, req.ID, err)
 				continue
@@ -136,12 +136,6 @@ func (s *service) Start(ctx context.Context, reqCh <-chan *nats.Msg, respCh chan
 		case <-ctx.Done():
 			return nil
 		}
-	}
-}
-
-func (s *service) Bind(rs ...natsrpc.Receiver) {
-	for i := range rs {
-		s.receivers.Register(rs[i].Name, rs[i].R)
 	}
 }
 
