@@ -10,7 +10,7 @@ require (
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/dnbsd/nats-rpc v0.0.0-20230502185243-6e2c70e201d6 // indirect
+	github.com/dnbsd/nats-rpc v0.0.0-20230531194240-0e81397c17b1 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/klauspost/compress v1.15.15 // indirect
 	github.com/minio/highwayhash v1.0.2 // indirect

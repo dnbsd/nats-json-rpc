@@ -3,6 +3,7 @@ package natsjsonrpc
 import (
 	"context"
 	"fmt"
+	natsrpc "github.com/dnbsd/nats-rpc"
 	natsserver "github.com/nats-io/nats-server/v2/test"
 	"github.com/nats-io/nats.go"
 	"github.com/stretchr/testify/assert"
@@ -46,9 +47,13 @@ func newNatsServerAndConnection(t *testing.T) *nats.Conn {
 
 func TestService_Start(t *testing.T) {
 	nc := newNatsServerAndConnection(t)
-	s := New(nc, rpcSubject, WithReceiver("Echo", &echo{}))
+	server := natsrpc.NewServer(nc)
+	server.Register(rpcSubject, "", New(natsrpc.Receiver{
+		Name: "Echo",
+		R:    &echo{},
+	}))
 	go func() {
-		err := s.Start(context.Background())
+		err := server.StartWithContext(context.Background())
 		assert.NoError(t, err)
 	}()
 
@@ -64,11 +69,4 @@ func TestService_Start(t *testing.T) {
 
 	expectedData := []byte(`{"jsonrpc": "2.0", "result": {"message": "hello world!"}, "id": 3}`)
 	assert.JSONEq(t, string(expectedData), string(respMsg.Data))
-}
-
-func TestService_StartErrorNoReceiver(t *testing.T) {
-	nc := newNatsServerAndConnection(t)
-	s := New(nc, rpcSubject)
-	err := s.Start(context.Background())
-	assert.Error(t, err)
 }

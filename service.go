@@ -9,54 +9,23 @@ import (
 	"strings"
 )
 
-var _ natsrpc.Service = &service{}
+var _ natsrpc.Service = &Service{}
 
 type Service struct {
-	server  *natsrpc.Server
-	service *service
-	subject string
-	opts    Options
-}
-
-func New(nc *nats.Conn, subject string, opts ...Option) *Service {
-	var o Options
-	for _, opt := range opts {
-		opt(&o)
-	}
-
-	return &Service{
-		server:  natsrpc.NewServer(nc),
-		service: newService(o.receivers...),
-		subject: subject,
-		opts:    o,
-	}
-}
-
-func (s *Service) Start(ctx context.Context) error {
-	err := s.opts.Validate()
-	if err != nil {
-		return err
-	}
-
-	s.server.Register(s.subject, s.service)
-	return s.server.StartWithContext(ctx)
-}
-
-type service struct {
 	mapper *natsrpc.Mapper
 }
 
-func newService(rs ...natsrpc.Receiver) *service {
+func New(rs ...natsrpc.Receiver) *Service {
 	mapper := natsrpc.NewMapper()
 	for i := range rs {
 		mapper.Register(rs[i].Name, rs[i].R)
 	}
-	return &service{
+	return &Service{
 		mapper: mapper,
 	}
 }
 
-func (s *service) Start(ctx context.Context, reqCh <-chan *nats.Msg, respCh chan<- *nats.Msg) error {
+func (s *Service) Start(ctx context.Context, reqCh <-chan *nats.Msg, respCh chan<- *nats.Msg) error {
 	sendErrorMessage := func(subject string, reqID uint64, err error) error {
 		msg, err := s.newErrorMessage(subject, reqID, err)
 		if err != nil {
@@ -139,7 +108,7 @@ func (s *service) Start(ctx context.Context, reqCh <-chan *nats.Msg, respCh chan
 	}
 }
 
-func (s *service) newErrorMessage(subject string, reqID uint64, err error) (*nats.Msg, error) {
+func (s *Service) newErrorMessage(subject string, reqID uint64, err error) (*nats.Msg, error) {
 	resp := newErrorResponse(reqID, err)
 	b, err := json.Marshal(resp)
 	if err != nil {
@@ -152,7 +121,7 @@ func (s *service) newErrorMessage(subject string, reqID uint64, err error) (*nat
 	}, nil
 }
 
-func (s *service) newMessage(subject string, reqID uint64, result any) (*nats.Msg, error) {
+func (s *Service) newMessage(subject string, reqID uint64, result any) (*nats.Msg, error) {
 	resp := newResponse(reqID, result)
 	b, err := json.Marshal(resp)
 	if err != nil {
@@ -165,7 +134,7 @@ func (s *service) newMessage(subject string, reqID uint64, result any) (*nats.Ms
 	}, nil
 }
 
-func (s *service) splitMethodName(name string) (receiver string, method string) {
+func (s *Service) splitMethodName(name string) (receiver string, method string) {
 	tokens := strings.SplitN(name, ".", 2)
 	if len(tokens) == 1 {
 		method = tokens[0]
