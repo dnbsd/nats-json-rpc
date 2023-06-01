@@ -7,6 +7,7 @@ import (
 	natsrpc "github.com/dnbsd/nats-rpc"
 	"github.com/nats-io/nats.go"
 	"strings"
+	"sync"
 )
 
 var _ natsrpc.Service = &Service{}
@@ -54,6 +55,11 @@ func (s *Service) Start(ctx context.Context, reqCh <-chan *nats.Msg, respCh chan
 		return nil
 	}
 
+	var wg sync.WaitGroup
+	defer func() {
+		wg.Wait()
+	}()
+
 	for {
 		select {
 		case msg := <-reqCh:
@@ -86,21 +92,26 @@ func (s *Service) Start(ctx context.Context, reqCh <-chan *nats.Msg, respCh chan
 				continue
 			}
 
-			result, err := s.mapper.Call(receiver, method, params.Elem())
-			if err != nil {
-				_ = sendErrorMessage(msg.Reply, req.ID, err)
-				continue
-			}
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
 
-			if req.IsNotification() {
-				continue
-			}
+				result, err := s.mapper.Call(receiver, method, params.Elem())
+				if err != nil {
+					_ = sendErrorMessage(msg.Reply, req.ID, err)
+					return
+				}
 
-			err = sendMessage(msg.Reply, req.ID, result.Interface())
-			if err != nil {
-				_ = sendErrorMessage(msg.Reply, req.ID, err)
-				continue
-			}
+				if req.IsNotification() {
+					return
+				}
+
+				err = sendMessage(msg.Reply, req.ID, result.Interface())
+				if err != nil {
+					_ = sendErrorMessage(msg.Reply, req.ID, err)
+					return
+				}
+			}()
 
 		case <-ctx.Done():
 			return nil
